@@ -1,0 +1,9 @@
+{
+  "name": "rfq-line-match",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A contractor's material list matched to a dealer's catalog, units converted and prices traced, every line pointing at the words and rows it came from.",
+  "scripts": { "test": "node --test" },
+  "license": "MIT"
+}

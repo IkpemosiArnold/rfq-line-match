@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Line Match</title>
+<meta name="description" content="A contractor's material list matched to a dealer's catalog. Units converted, prices traced, every quote line pointing at the words and rows it came from. Plain code holds back what it cannot settle.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfcfd">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0f15">
+<link rel="icon" href="data:,">
+<link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-cross" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.2 2.2"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+<main class="shell">
+  <div class="sheet-col">
+    <header class="top">
+      <p class="mark">Line Match <span class="tag">Sample data</span></p>
+      <h1>Every quote line points at the words and rows behind it.</h1>
+      <p class="sub">One made-up material list. Plain code, no model. What it cannot settle, a rep decides.</p>
+    </header>
+
+    <section class="reading" aria-labelledby="summary">
+      <p class="summary" id="summary" role="status"><span class="sum-main">Checking</span></p>
+      <button type="button" class="btn text why-btn" id="why-btn" aria-expanded="false" aria-controls="chain">What ready means</button>
+      <div class="why-text" id="chain" hidden>
+        <p>A line is ready when its words fit exactly one catalog item, every word on it was read, its unit turns into the unit the item is sold in, and its price sits on a row that is still in date. A customer part number has to agree with the words.</p>
+        <p>Linear feet become pieces by the item's length and square feet become sheets by the sheet size, rounded up, with the sum shown. Delivery is added only when the email asks for it and its ZIP is on the zone sheet. Anything else is held with the reason and the choices.</p>
+      </div>
+      <div id="groups" class="groups"></div>
+    </section>
+  </div>
+
+  <aside class="evidence-col" id="side" aria-live="polite"></aside>
+
+  <section class="tool" id="quote-tool" aria-labelledby="quote-h">
+    <h2 id="quote-h">The quote</h2>
+    <p class="tool-sub" id="quote-sub"></p>
+    <div class="actions top-actions">
+      <button type="button" id="approve" class="btn primary">Approve the ready lines</button>
+      <button type="button" id="dl" class="btn text" disabled>Download the import file</button>
+      <button type="button" id="reset" class="btn text">Reset sample</button>
+    </div>
+  </section>
+
+  <section class="tool" id="own-tool" aria-labelledby="own-h">
+    <h2 id="own-h">Try your own lines</h2>
+    <p class="tool-sub">One line each: quantity, unit, description. They are checked in this browser against the sample catalog and price sheet.</p>
+    <label class="sr" for="own-in">Material list lines</label>
+    <textarea id="own-in" rows="6" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="40 pcs 2x6x16 SPF #2&#10;500 LF 2x4 SPF #2, 8 ft&#10;24 sheets 1/2 drywall"></textarea>
+    <div class="actions">
+      <button type="button" id="own-check" class="btn primary">Check them</button>
+      <button type="button" id="own-sample" class="btn text">Fill in an example</button>
+    </div>
+    <p id="own-error" class="error" role="alert" hidden></p>
+    <div id="own-out"></div>
+  </section>
+
+  <section class="tool" id="src-tool" aria-labelledby="src-h">
+    <h2 id="src-h">The request and the tables</h2>
+    <p class="tool-sub">The email, the attached list, and the dealer's catalog, cross-reference, price sheet and delivery zones, as lines of text.</p>
+    <button type="button" class="btn text" id="src-btn" aria-expanded="false" aria-controls="src-out">Show them</button>
+    <div id="src-out" hidden></div>
+  </section>
+
+  <footer class="foot" id="foot">
+    <p>For inside sales desks at building materials dealers and distributors. Built by Arnold Ikpemosi Adeyemi. Made-up dealer, customer, part numbers and prices.</p>
+    <p><a href="https://ikpemosi.work">ikpemosi.work</a></p>
+  </footer>
+</main>
+<script type="module" src="app.js?v=1"></script>
+</body>
+</html>
