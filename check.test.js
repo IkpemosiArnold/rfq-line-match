@@ -29,7 +29,7 @@ test("the catalog reads cleanly: every row has a product and no leftover words",
     assert.ok(it.read.kind, it.desc);
     assert.deepEqual(it.read.unread, [], it.desc);
   }
-  assert.equal(book.cat.length, 17);
+  assert.equal(book.cat.length, 18);
 });
 
 test("linear feet become pieces by the item's length", () => {
@@ -45,11 +45,20 @@ test("linear feet become pieces by the item's length", () => {
 });
 
 test("square feet become sheets, rounded up, with the working shown", () => {
-  const l = checkAll(sample).lines[6];
-  assert.equal(l.item.sku, "P-2332T");
-  assert.equal(l.qty, 63);
-  assert.equal(l.amount, 1811.25);
-  assert.match(l.calc, /2,000 SF \/ 32 SF a sheet = 62\.5, rounded up to 63 SHT/);
+  const l = checkAll(sample).lines[5];
+  assert.equal(l.item.sku, "P-0716");
+  assert.equal(l.qty, 96);
+  assert.equal(l.amount, 1142.4);
+  assert.match(l.calc, /3,050 SF \/ 32 SF a sheet = 95\.31, rounded up to 96 SHT/);
+});
+
+test("square feet of a tongue-and-groove panel are held: the net width is not on the catalog row", () => {
+  const l = one("2,000 SF 3/4 T&G subfloor 4x8");
+  assert.equal(l.ready, false);
+  assert.equal(l.short, "Unit not settled");
+  assert.match(l.why, /a T&G sheet covers a little less than its 4x8 face/);
+  assert.equal(checkAll(sample).lines[6].qty, 63); // asked for in sheets, so nothing to convert
+  assert.equal(checkAll(sample).lines[6].amount, 1811.25);
 });
 
 test("a 3/4 subfloor is the 23/32 item, and the line says so", () => {
@@ -73,11 +82,12 @@ test("a rep's pick settles a held line and is recorded", () => {
   assert.equal(l4.amount, 3096);
   assert.equal(l4.by, "rep");
   assert.equal(l11.amount, 385);
-  assert.equal(l9.price, 15.4);
-  assert.equal(l9.amount, 616);
+  assert.equal(l9.price, 15.1);
+  assert.equal(l9.amount, 1208);
+  assert.match(l9.reason, /1\/2 \(sold as 15\/32\)/);
   assert.equal(l9.by, "rep");
   assert.equal(r.ready.length, 11);
-  assert.equal(r.total, 12641.05);
+  assert.equal(r.total, 13233.05);
 });
 
 test("a part number that agrees with the words passes, and settles a line the words leave open", () => {
@@ -99,7 +109,7 @@ test("box size not given: two items fit, held", () => {
 test("a length the catalog does not stock is not found, and nothing is swapped in", () => {
   const l = checkAll(sample).lines[7];
   assert.equal(l.state, "none");
-  assert.equal(l.short, "No 20 ft in the catalog");
+  assert.equal(l.short, "Catalog has 16 ft and 24 ft, not 20 ft");
   assert.match(l.why, /16 ft and 24 ft, not 20 ft/);
   assert.deepEqual(l.options, []);
 });
@@ -107,7 +117,7 @@ test("a length the catalog does not stock is not found, and nothing is swapped i
 test("a contract price past its date is held; a live one is used; no row means list", () => {
   const l = checkAll(sample).lines[8];
   assert.equal(l.kindOfHold, "price");
-  assert.match(l.why, /\$13\.85 ended on Oct 31, 2026, before the quote date, Nov 17, 2026/);
+  assert.match(l.why, /\$13\.60 ended on Oct 31, 2026, before the quote date, Nov 17, 2026/);
   assert.equal(l.short, "Contract price ended Oct 31, 2026");
   assert.equal(checkAll(sample).lines[0].priceKind, "contract");
   const list = one("40 pcs 2x6x16 SPF #2");
@@ -123,7 +133,7 @@ test("pasted lines: each comes out ready, held or not read, and none is dropped"
   assert.equal(out.length, 5);
   assert.deepEqual(out.map((l) => l.ready), [true, true, false, true, false]);
   assert.equal(out[2].short, "Sheet size not given");
-  assert.equal(out[4].short, "No 2x8 in the catalog");
+  assert.equal(out[4].short, "Catalog has 2x6 and 2x10, not 2x8");
   const junk = checkPasted("hello there\n\n40 pcs 2x6x16 SPF #2\n40 pcs 2x6x16 SPF #2\n0 pcs 2x4x8 SPF #2\n-5 pcs 2x4x8 SPF #2\n2.5 pcs 2x4x8 SPF #2", sample);
   assert.equal(junk.length, 6);
   assert.equal(junk[0].short, "Not read");
@@ -143,12 +153,49 @@ test("a word it does not know holds the line, even when the rest would match", (
 });
 
 test("a different species, a wrong unit and a line with no product are all held", () => {
-  assert.equal(one("40 pcs 2x6x16 SYP #2").short, "No SYP in the catalog");
+  assert.equal(one("40 pcs 2x6x16 SYP #2").short, "Catalog has SPF, not SYP");
   assert.equal(one("40 sheets 2x4x8 SPF #2").short, "Unit not settled");
   assert.equal(one("100 LF 7/16 OSB 4x8").short, "Unit not settled");
   assert.equal(one("10 rolls 2x4x8 SPF #2").short, "Unit not settled");
   assert.equal(one("12 pcs #2").short, "No product in these words");
   assert.equal(one("12 pcs 2x4 SPF #2").short, "Length not given");
+});
+
+test("a line the way a mail client writes it: spaced sizes, ft after the length, a multiplication sign", () => {
+  for (const t of ["60 pcs #2 SPF 2 x 4 x 8 ft", "60 pcs \u00b7 #2 SPF 2 \u00d7 4 \u00d7 8 ft", "60 pcs 2x4x8' SPF #2"]) {
+    const l = one(t);
+    assert.equal(l.ready, true, t);
+    assert.equal(l.item.sku, "L-2408", t);
+    assert.equal(l.amount, 217.2, t);
+  }
+});
+
+test("when nothing fits, the reason names the missing detail and says nothing false about the catalog", () => {
+  assert.equal(one("100 pcs 2x4x10 SPF #2").short, "Catalog has 8 ft, not 10 ft"); // row 1 of the catalog is a 2x4
+  assert.equal(one("40 pcs 2x6x10 SPF #2").short, "Catalog has 12 ft and 16 ft, not 10 ft");
+  assert.equal(one("120 sheets 3/4 OSB 4x8").short, "Catalog has 7/16 and 15/32, not 3/4 (23/32)");
+});
+
+test("a part number for a different kind of item: both items are named in full", () => {
+  const l = one("180 pcs 2x10x12 SPF #2, our part 4502");
+  assert.equal(l.state, "fail");
+  assert.equal(l.short, "Part 4502 is 7/16 OSB 4x8. The line says 2x10x12 SPF #2.");
+  assert.ok(!/none/.test(l.short + l.why));
+  assert.deepEqual(l.options.map((o) => o.sku), ["P-0716", "L-21012"]);
+});
+
+test("a stud with no length is held, like any other lumber", () => {
+  const l = one("100 pcs 2x4 studs");
+  assert.equal(l.ready, false);
+  assert.equal(l.short, "Length not given");
+  assert.deepEqual(l.options.map((o) => o.sku), ["L-2492"]);
+  assert.equal(checkAll(sample).lines[2].ready, true); // the sample line gives 92-5/8
+});
+
+test("a choice shows the price that will apply, contract or list", () => {
+  const r = checkAll(sample);
+  assert.deepEqual(r.lines[3].options.map((o) => o.note), ["L-21010, EA at $14.20 contract", "L-21012, EA at $17.20 contract"]);
+  assert.deepEqual(r.lines[10].options.map((o) => o.note), ["F-D301, BX at $9.80 list", "F-D305, BX at $38.50 list"]);
 });
 
 test("delivery: added only from the email and the zone sheet", () => {
@@ -210,6 +257,6 @@ test("words: what the reader takes from a description", () => {
   assert.equal(r.kind, "lvl");
   assert.equal(r.attrs.section.v, "1-3/4 x 11-7/8");
   assert.equal(r.attrs.len.v, "20");
-  assert.equal(readWords("3-1/4 in. x .131 framing nails, 2,500 ct").attrs.shank.v, ".131");
+  assert.equal(readWords("3-1/4 in. x .131 framing nails, 2,000 ct").attrs.shank.v, ".131");
   assert.equal(convert(96, "sheets", book.bySku.get("P-0716")).qty, 96);
 });

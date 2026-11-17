@@ -36,7 +36,7 @@ const FILLER = new Set([
   "box", "boxes", "ea", "each", "pcs", "pc", "pieces", "sheets", "sheet", "rolls", "roll", "our", "please",
 ]);
 const REQUIRED = {
-  lumber: ["nominal", "len"], stud: ["nominal"], osb: ["thick"], subfloor: ["thick"],
+  lumber: ["nominal", "len"], stud: ["nominal", "len"], osb: ["thick"], subfloor: ["thick"],
   drywall: ["thick", "size"], lvl: ["section", "len"], wrap: ["size"], screw: ["flen", "pack"], nail: ["flen"],
 };
 export const ATTR_NAMES = {
@@ -45,8 +45,11 @@ export const ATTR_NAMES = {
 };
 const KIND_NAMES = {
   lumber: "lumber", stud: "precut stud", osb: "OSB", subfloor: "subfloor", drywall: "drywall",
-  lvl: "LVL", wrap: "house wrap", screw: "deck screws", nail: "framing nails",
+  lvl: "LVL", wrap: "house wrap", screw: "box of deck screws", nail: "box of framing nails",
 };
+// When nothing fits, the detail to name first: the one a reader thinks of as the variant.
+const BLAME = ["len", "size", "pack", "thick", "flen", "shank", "edge", "grade", "species", "section", "nominal"];
+const list = (a) => (a.length < 3 ? a.join(" and ") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
 const say = (k, v) => (k === "len" && /^\d+$/.test(v) ? `${v} ft` : k === "flen" ? `${v} in.` : k === "species" ? v.toUpperCase() : v);
 
 /**
@@ -54,7 +57,7 @@ const say = (k, v) => (k === "len" && /^\d+$/.test(v) ? `${v} ft` : k === "flen"
  * of the text, so nothing is read twice, and whatever is left over is reported.
  */
 export function readWords(text, base = 0) {
-  let work = text.toLowerCase();
+  let work = text.toLowerCase().replace(/\u00d7/g, "x");
   const attrs = {};
   let kind = null;
   let kindRef = null;
@@ -89,7 +92,7 @@ export function readWords(text, base = 0) {
   if (PANELS.has(kind)) {
     hit(/\b4\s*x\s*(8|9|10|12)\b/, (m, at) => set("size", `4x${m[1]}`, at(0)));
   } else if (kind === null || kind === "stud") {
-    hit(/\b([246])\s*x\s*(\d{1,2})(?:\s*x\s*(\d{1,2})\b)?/, (m, at) => {
+    hit(/\b([246])\s*x\s*(\d{1,2})(?:\s*x\s*(\d{1,2})\b(?:\s*(?:ft\b\.?|foot\b|'))?)?/, (m, at) => {
       set("nominal", `${m[1]}x${m[2]}`, { start: at(1).start, end: at(2).end });
       if (m[3] && !attrs.len) set("len", m[3], at(3));
     });
@@ -113,7 +116,7 @@ export function readWords(text, base = 0) {
   if (!kind && attrs.nominal) kind = "lumber";
 
   const unread = [];
-  for (const m of work.matchAll(/[^\s,;:()]+/g)) {
+  for (const m of work.matchAll(/[^\s,;:()\u00b7]+/g)) {
     const w = m[0].replace(/^[.'"-]+|[.'"-]+$/g, "");
     if (!w || FILLER.has(w)) continue;
     unread.push({ text: text.slice(m.index, m.index + m[0].length), start: base + m.index, end: base + m.index + m[0].length });
@@ -186,6 +189,7 @@ export function convert(qty, unit, item) {
   }
   if (unit === "SF") {
     const m = a.size && /^(\d+)x(\d+)$/.exec(a.size.v);
+    if (a.edge) return { ok: false, why: `Asked for in square feet; a ${a.edge.v} sheet covers a little less than its ${a.size ? a.size.v : "nominal"} face, and this catalog row does not give the net width.` };
     if (!m || item.unit !== "SHT") return { ok: false, why: `Asked for in square feet; this item is sold by the ${item.unit} with no sheet size.` };
     const area = Number(m[1]) * Number(m[2]);
     const exact = qty / area;
@@ -237,7 +241,11 @@ export function checkLine(text, n, book, picks = {}, doc = "list") {
 
   let item = null;
   let settled = null; // how the item was settled, for the reader
-  const opt = (it, label) => ({ kind: "item", sku: it.sku, label: label || it.desc, note: `${it.sku}, ${it.unit} at $${fmt(it.list)} list` });
+  const applies = (it) => {
+    const r = book.price.find((p) => p.sku === it.sku);
+    return r && r.until >= book.quoteDate ? `$${fmt(r.amount)} contract` : `$${fmt(it.list)} list`;
+  };
+  const opt = (it, label) => ({ kind: "item", sku: it.sku, label: label || it.desc, note: `${it.sku}, ${it.unit} at ${applies(it)}` });
   if (picks.item && book.bySku.has(picks.item)) {
     item = book.bySku.get(picks.item);
     settled = "rep";
@@ -246,8 +254,9 @@ export function checkLine(text, n, book, picks = {}, doc = "list") {
     const diff = Object.keys(read.attrs).filter((k) => !other.read.attrs[k] || other.read.attrs[k].v !== read.attrs[k].v);
     const said = diff.map((k) => say(k, read.attrs[k].v)).join(", ");
     const is = diff.map((k) => (other.read.attrs[k] ? say(k, other.read.attrs[k].v) : "none")).join(", ");
-    return hold("fail", `Part ${read.part.v} is the ${is}. The line says ${said}.`,
-      `Part ${read.part.v} is ${other.desc} (${other.sku}) on the cross-reference. The words on the line say ${said}, which is ${cands[0].desc} (${cands[0].sku}). One of the two is wrong.`,
+    const alike = other.read.kind === read.kind && diff.length > 0 && diff.every((k) => other.read.attrs[k]);
+    return hold("fail", alike ? `Part ${read.part.v} is the ${is}. The line says ${said}.` : `Part ${read.part.v} is ${other.desc}. The line says ${cands[0].desc}.`,
+      `Part ${read.part.v} is ${other.desc} (${other.sku}) on the cross-reference. The words on the line ${alike ? `say ${said}, which is` : "are"} ${cands[0].desc} (${cands[0].sku}). One of the two is wrong.`,
       {
         ...asked, kindOfHold: "conflict",
         refs: [lref(doc, line, read.part), ...diff.map((k) => lref(doc, line, read.attrs[k]))],
@@ -267,12 +276,13 @@ export function checkLine(text, n, book, picks = {}, doc = "list") {
     let short = "Not in the catalog";
     let near = [];
     let bad = [];
-    for (const k of Object.keys(read.attrs)) {
+    for (const k of BLAME.filter((b) => read.attrs[b])) {
       const loose = book.cat.filter((it) => fits(it, read, k) && it.read.attrs[k]);
       if (!loose.length) continue;
       const has = [...new Set(loose.map((it) => say(k, it.read.attrs[k].v)))];
-      short = `No ${say(k, read.attrs[k].v)} in the catalog`;
-      why = `Not found: the catalog has this in ${has.join(" and ")}, not ${say(k, read.attrs[k].v)}. Nothing is swapped in.`;
+      const asked = read.attrs[k].raw ? `${read.attrs[k].raw} (${read.attrs[k].v})` : say(k, read.attrs[k].v);
+      short = `Catalog has ${list(has)}, not ${asked}`;
+      why = `Not found: the catalog has this in ${list(has)}, not ${asked}. Nothing is swapped in.`;
       near = loose;
       bad = [k];
       break;

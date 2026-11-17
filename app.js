@@ -133,6 +133,9 @@ function detail(l, docs, { own = false } = {}) {
     }
     box.append(ch);
   }
+  if (!l.ready && l.kindOfHold === "notfound" && l.srcRefs.length && !own) {
+    box.append(el("p", "tool-sub", "A rep would special-order this or offer what the catalog has. The page does neither."));
+  }
   if (!l.ready && l.options.length && own) {
     box.append(el("p", "ev-h", "What a rep would choose from"));
     box.append(el("p", "tool-sub", l.options.map((o) => o.label).join(", or ")));
@@ -162,7 +165,7 @@ function row(l, docs, { own = false, isOpen, onToggle }) {
   const s = el("span", `status st-${l.state}`);
   s.append(icon(glyph[l.state]), el("span", null, statusWord(l)));
   const v = el("span", "val");
-  v.append(el("b", null, l.n === "delivery" ? "Delivery to the jobsite" : l.text));
+  v.append(el("b", null, l.n === "delivery" ? "Delivery" : l.text));
   v.append(el("span", `meta${l.ready ? "" : ` st-${l.state}`}`, l.ready ? `${l.short}${l.n === "delivery" ? "" : ` = ${usd(l.amount)}`}${l.by === "rep" ? ", settled by a rep" : ""}` : l.short));
   const chev = icon("chev");
   chev.classList.add("chev");

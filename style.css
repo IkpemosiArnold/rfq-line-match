@@ -30,7 +30,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 400 17px/1.5 v
 
 .mark { font-size: 14px; font-weight: 600; margin: 0 0 var(--s2); }
 .mark .tag { font-weight: 400; color: var(--muted); margin-left: var(--s2); }
-h1 { font-size: 30px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; margin: 0 0 var(--s3); text-wrap: balance; }
+h1 { font-size: 26px; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; margin: 0 0 var(--s3); text-wrap: balance; }
 .sub { font-size: 15px; color: var(--muted); margin: 0; max-width: 34em; }
 
 .reading { margin-top: var(--s6); }
@@ -172,9 +172,10 @@ a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness:
   #own-tool { grid-area: own; }
   #src-tool { grid-area: srcs; }
   .foot { grid-area: foot; }
-  h1 { font-size: 32px; }
+  h1 { font-size: 28px; }
   #groups .row-item .evidence { display: none; }
   #groups .row[aria-expanded="true"] .chev { transform: none; color: var(--accent); }
+  #groups .row[aria-expanded="true"] .val b { color: var(--accent); }
   .side-h { display: block; font-size: 14px; font-weight: 500; color: var(--muted); margin: 0 0 var(--s1); }
   .side-title { display: block; font-size: 22px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 var(--s2); font-variant-numeric: tabular-nums; }
 }
